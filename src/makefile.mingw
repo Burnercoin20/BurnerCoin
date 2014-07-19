@@ -82,7 +82,6 @@ OBJS= \
     obj/key.o \
     obj/db.o \
     obj/init.o \
-    obj/irc.o \
     obj/keystore.o \
     obj/miner.o \
     obj/main.o \
@@ -151,8 +150,6 @@ clean:
 	-rm -f burnercoind
 	-rm -f obj/*.o
 	-rm -f obj/*.P
-	-rm -f obj-test/*.o
-	-rm -f obj-test/*.P
 	-rm -f obj/build.h
 	-rm -f leveldb/libleveldb.a
 	-rm -f leveldb/libmemenv.a

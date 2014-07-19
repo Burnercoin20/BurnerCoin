@@ -40,9 +40,6 @@ static const int64_t COIN_YEAR_REWARD = 1 * CENT;
 static const int64_t MAX_MINT_PROOF_OF_STAKE = 0.25 * COIN;	// 25% annual interest
 static const int64_t MAX_MINT_PROOF_OF_STAKE_NEW = 0.05 * COIN;	// 5% annual interest
 
-#define FOUNDATION "BBEkGa7K9fRWegE88JxY3gJu4aRebbKNQe"
-#define FOUNDATION_TEST "n3DyCtmMDMKhiuwDK9iZ7ZKhzJyBAKoKSk"
-
 inline bool MoneyRange(int64_t nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 // Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX timestamp.
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
@@ -63,7 +60,6 @@ static const uint256 CheckPointBlock2("91f85b25cc2de2672640decd986eec727fc45366f
 inline int64_t PastDrift(int64_t nTime)   { return nTime - 24 * 60 * 60; } // up to 1 day from the past
 inline int64_t FutureDrift(int64_t nTime) { return nTime + 24 * 60 * 60; } // up to 1 day from the future
 
-extern int64_t devCoin;
 extern CScript COINBASE_FLAGS;
 extern CCriticalSection cs_main;
 extern std::map<uint256, CBlockIndex*> mapBlockIndex;

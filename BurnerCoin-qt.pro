@@ -1,11 +1,12 @@
-
+QT += core gui network
 TEMPLATE = app
 TARGET = burnercoin-qt
-VERSION = 1.2.0.0
-INCLUDEPATH += src src/json src/qt
+VERSION = 2.0
+INCLUDEPATH += src src/json src/qt src/tor
 DEFINES += QT_GUI BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE
 CONFIG += no_include_pwd
 CONFIG += thread
+
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 lessThan(QT_MAJOR_VERSION, 5): CONFIG += static
 QMAKE_CXXFLAGS = -fpermissive
@@ -13,25 +14,6 @@ QMAKE_CXXFLAGS = -fpermissive
 greaterThan(QT_MAJOR_VERSION, 4) {
     QT += widgets
     DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0
-}
-
-win32 {
-    windows:LIBS += -lshlwapi
-    LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
-    LIBS += -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX
-    windows:LIBS += -lws2_32 -lole32 -loleaut32 -luuid -lgdi32
-    LIBS += -lboost_system-mgw48-mt-s-1_55 -lboost_filesystem-mgw48-mt-s-1_55 -lboost_program_options-mgw48-mt-s-1_55 -lboost_thread-mgw48-mt-s-1_55
-    BOOST_LIB_SUFFIX=-mgw48-mt-s-1_55
-    BOOST_INCLUDE_PATH=C:/deps/boost_1_55_0
-    BOOST_LIB_PATH=C:/deps/boost_1_55_0/stage/lib
-    BDB_INCLUDE_PATH=C:/deps/db-4.8.30.NC/build_unix
-    BDB_LIB_PATH=C:/deps/db-4.8.30.NC/build_unix
-    OPENSSL_INCLUDE_PATH=C:/deps/openssl-1.0.1g/include
-    OPENSSL_LIB_PATH=C:/deps/openssl-1.0.1g
-    MINIUPNPC_INCLUDE_PATH=C:/deps/
-    MINIUPNPC_LIB_PATH=C:/deps/miniupnpc
-    QRENCODE_INCLUDE_PATH=C:/deps/qrcode-win32-3.1.1/include
-    QRENCODE_LIB_PATH=C:/deps/qrcode-win32-3.1.1/dll
 }
 
 # for boost 1.37, add -mt to the boost libraries
@@ -50,8 +32,8 @@ UI_DIR = build
 
 # use: qmake "RELEASE=1"
 contains(RELEASE, 1) {
-    # Mac: compile for maximum compatibility (10.5, 32-bit)
-    macx:QMAKE_CXXFLAGS += -mmacosx-version-min=10.5 -arch x86_64 -isysroot /Developer/SDKs/MacOSX10.5.sdk
+    # Mac: compile for maximum compatibility (10.6, 64-bit)
+    macx:QMAKE_CXXFLAGS += -mmacosx-version-min=10.6 -arch x86_64 -isysroot /Developer/SDKs/MacOSX10.6.sdk
 
     !windows:!macx {
         # Linux: static link
@@ -67,19 +49,16 @@ QMAKE_LFLAGS *= -fstack-protector-all --param ssp-buffer-size=1
 # This can be enabled for Windows, when we switch to MinGW >= 4.4.x.
 }
 # for extra security on Windows: enable ASLR and DEP via GCC linker flags
-win32:QMAKE_LFLAGS *= -Wl,--dynamicbase -Wl,--nxcompat
+win32:QMAKE_LFLAGS *= -Wl,--dynamicbase -Wl,--nxcompat -static
 win32:QMAKE_LFLAGS += -static-libgcc -static-libstdc++
 lessThan(QT_MAJOR_VERSION, 5): win32: QMAKE_LFLAGS *= -static
 
-USE_QRCODE=1
 # use: qmake "USE_QRCODE=1"
 # libqrencode (http://fukuchi.org/works/qrencode/index.en.html) must be installed for support
 contains(USE_QRCODE, 1) {
     message(Building with QRCode support)
     DEFINES += USE_QRCODE
-    macx:LIBS += -lqrencode
-    win32:INCLUDEPATH +=$$QRENCODE_INCLUDE_PATH
-    win32:LIBS += $$join(QRENCODE_LIB_PATH,,-L) -lqrcodelib
+    LIBS += -lqrencode
 }
 
 # use: qmake "USE_UPNP=1" ( enabled by default; default)
@@ -151,7 +130,7 @@ SOURCES += src/txdb-leveldb.cpp \
         QMAKE_RANLIB = $$replace(QMAKE_STRIP, strip, ranlib)
     }
     LIBS += -lshlwapi
-    genleveldb.commands = cd $$PWD/src/leveldb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX TARGET_OS=OS_WINDOWS_CROSSCOMPILE $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" libleveldb.a libmemenv.a && $$QMAKE_RANLIB $$PWD/src/leveldb/libleveldb.a && $$QMAKE_RANLIB $$PWD/src/leveldb/libmemenv.a
+    #genleveldb.commands = cd $$PWD/src/leveldb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX TARGET_OS=OS_WINDOWS_CROSSCOMPILE $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" libleveldb.a libmemenv.a && $$QMAKE_RANLIB $$PWD/src/leveldb/libleveldb.a && $$QMAKE_RANLIB $$PWD/src/leveldb/libmemenv.a
 }
 genleveldb.target = $$PWD/src/leveldb/libleveldb.a
 genleveldb.depends = FORCE
@@ -189,7 +168,8 @@ QMAKE_CXXFLAGS_WARN_ON = -fdiagnostics-show-option -Wall -Wextra -Wno-ignored-qu
 
 # Input
 DEPENDPATH += src src/json src/qt
-HEADERS += src/qt/bitcoingui.h \
+HEADERS += \
+    src/qt/bitcoingui.h \
     src/qt/transactiontablemodel.h \
     src/qt/addresstablemodel.h \
     src/qt/optionsdialog.h \
@@ -201,6 +181,83 @@ HEADERS += src/qt/bitcoingui.h \
     src/qt/aboutdialog.h \
     src/qt/editaddressdialog.h \
     src/qt/bitcoinaddressvalidator.h \
+    src/tor/address.c \
+    src/tor/addressmap.c \
+    src/tor/aes.c \
+    src/tor/backtrace.c \
+    src/tor/buffers.c \
+    src/tor/channel.c \
+    src/tor/channeltls.c \
+    src/tor/circpathbias.c \
+    src/tor/circuitbuild.c \
+    src/tor/circuitlist.c \
+    src/tor/circuitmux.c \
+    src/tor/circuitmux_ewma.c \
+    src/tor/circuitstats.c \
+    src/tor/circuituse.c \
+    src/tor/command.c \
+    src/tor/compat.c \
+    src/tor/compat_libevent.c \
+    src/tor/config.c \
+    src/tor/config_codedigest.c \
+    src/tor/confparse.c \
+    src/tor/connection.c \
+    src/tor/connection_edge.c \
+    src/tor/connection_or.c \
+    src/tor/container.c \
+    src/tor/control.c \
+    src/tor/cpuworker.c \
+    src/tor/crypto.c \
+    src/tor/crypto_curve25519.c \
+    src/tor/crypto_format.c \
+    src/tor/curve25519-donna.c \
+    src/tor/di_ops.c \
+    src/tor/directory.c \
+    src/tor/dirserv.c \
+    src/tor/dirvote.c \
+    src/tor/dns.c \
+    src/tor/dnsserv.c \
+    src/tor/entrynodes.c \
+    src/tor/ext_orport.c \
+    src/tor/fp_pair.c \
+    src/tor/geoip.c \
+    src/tor/hibernate.c \
+    src/tor/log.c \
+    src/tor/memarea.c \
+    src/tor/mempool.c \
+    src/tor/microdesc.c \
+    src/tor/networkstatus.c \
+    src/tor/nodelist.c \
+    src/tor/onion.c \
+    src/tor/onion_fast.c \
+    src/tor/onion_main.c \
+    src/tor/onion_ntor.c \
+    src/tor/onion_tap.c \
+    src/tor/policies.c \
+    src/tor/burnercoin.cpp \
+    src/tor/procmon.c \
+    src/tor/reasons.c \
+    src/tor/relay.c \
+    src/tor/rendclient.c \
+    src/tor/rendcommon.c \
+    src/tor/rendmid.c \
+    src/tor/rendservice.c \
+    src/tor/rephist.c \
+    src/tor/replaycache.c \
+    src/tor/router.c \
+    src/tor/routerlist.c \
+    src/tor/routerparse.c \
+    src/tor/routerset.c \
+    src/tor/sandbox.c \
+    src/tor/statefile.c \
+    src/tor/status.c \
+    src/tor/strlcat.c \
+    src/tor/strlcpy.c \
+    src/tor/tor_util.c \
+    src/tor/torgzip.c \
+    src/tor/tortls.c \
+    src/tor/transports.c \
+    src/tor/util_codedigest.c \	
     src/alert.h \
     src/addrman.h \
     src/base58.h \
@@ -226,7 +283,6 @@ HEADERS += src/qt/bitcoingui.h \
     src/walletdb.h \
     src/script.h \
     src/init.h \
-    src/irc.h \
     src/mruset.h \
     src/json/json_spirit_writer_template.h \
     src/json/json_spirit_writer.h \
@@ -291,7 +347,8 @@ HEADERS += src/qt/bitcoingui.h \
     src/threadsafety.h \
     src/txdb-leveldb.h
 
-SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
+SOURCES += \ 
+    src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/qt/transactiontablemodel.cpp \
     src/qt/addresstablemodel.cpp \
     src/qt/optionsdialog.cpp \
@@ -303,6 +360,83 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/qt/aboutdialog.cpp \
     src/qt/editaddressdialog.cpp \
     src/qt/bitcoinaddressvalidator.cpp \
+   src/tor/address.c \
+    src/tor/addressmap.c \
+    src/tor/aes.c \
+    src/tor/backtrace.c \
+    src/tor/buffers.c \
+    src/tor/channel.c \
+    src/tor/channeltls.c \
+    src/tor/circpathbias.c \
+    src/tor/circuitbuild.c \
+    src/tor/circuitlist.c \
+    src/tor/circuitmux.c \
+    src/tor/circuitmux_ewma.c \
+    src/tor/circuitstats.c \
+    src/tor/circuituse.c \
+    src/tor/command.c \
+    src/tor/compat.c \
+    src/tor/compat_libevent.c \
+    src/tor/config.c \
+    src/tor/config_codedigest.c \
+    src/tor/confparse.c \
+    src/tor/connection.c \
+    src/tor/connection_edge.c \
+    src/tor/connection_or.c \
+    src/tor/container.c \
+    src/tor/control.c \
+    src/tor/cpuworker.c \
+    src/tor/crypto.c \
+    src/tor/crypto_curve25519.c \
+    src/tor/crypto_format.c \
+    src/tor/curve25519-donna.c \
+    src/tor/di_ops.c \
+    src/tor/directory.c \
+    src/tor/dirserv.c \
+    src/tor/dirvote.c \
+    src/tor/dns.c \
+    src/tor/dnsserv.c \
+    src/tor/entrynodes.c \
+    src/tor/ext_orport.c \
+    src/tor/fp_pair.c \
+    src/tor/geoip.c \
+    src/tor/hibernate.c \
+    src/tor/log.c \
+    src/tor/memarea.c \
+    src/tor/mempool.c \
+    src/tor/microdesc.c \
+    src/tor/networkstatus.c \
+    src/tor/nodelist.c \
+    src/tor/onion.c \
+    src/tor/onion_fast.c \
+    src/tor/onion_main.c \
+    src/tor/onion_ntor.c \
+    src/tor/onion_tap.c \
+    src/tor/policies.c \
+    src/tor/burnercoin.cpp \
+    src/tor/procmon.c \
+    src/tor/reasons.c \
+    src/tor/relay.c \
+    src/tor/rendclient.c \
+    src/tor/rendcommon.c \
+    src/tor/rendmid.c \
+    src/tor/rendservice.c \
+    src/tor/rephist.c \
+    src/tor/replaycache.c \
+    src/tor/router.c \
+    src/tor/routerlist.c \
+    src/tor/routerparse.c \
+    src/tor/routerset.c \
+    src/tor/sandbox.c \
+    src/tor/statefile.c \
+    src/tor/status.c \
+    src/tor/strlcat.c \
+    src/tor/strlcpy.c \
+    src/tor/tor_util.c \
+    src/tor/torgzip.c \
+    src/tor/tortls.c \
+    src/tor/transports.c \
+    src/tor/util_codedigest.c \
     src/alert.cpp \
     src/version.cpp \
     src/sync.cpp \
@@ -314,7 +448,6 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/miner.cpp \
     src/init.cpp \
     src/net.cpp \
-    src/irc.cpp \
     src/checkpoints.cpp \
     src/addrman.cpp \
     src/db.cpp \
@@ -474,9 +607,11 @@ macx:QMAKE_LFLAGS_THREAD += -pthread
 macx:QMAKE_CXXFLAGS_THREAD += -pthread
 
 # Set libraries and includes at end, to use platform-defined defaults if not overridden
-INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$OPENSSL_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH
-LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
+INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$OPENSSL_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH $$LIBEVENT_INCLUDE_PATH
+LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,) $$join(LIBEVENT_LIB_PATH,,-L,)
 LIBS += -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX
+LIBS += -levent
+
 # -lgdi32 has to happen after -lcrypto (see  #681)
 windows:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32
 LIBS += -lboost_system$$BOOST_LIB_SUFFIX -lboost_filesystem$$BOOST_LIB_SUFFIX -lboost_program_options$$BOOST_LIB_SUFFIX -lboost_thread$$BOOST_THREAD_LIB_SUFFIX
@@ -490,3 +625,4 @@ contains(RELEASE, 1) {
 }
 
 system($$QMAKE_LRELEASE -silent $$_PRO_FILE_)
+
